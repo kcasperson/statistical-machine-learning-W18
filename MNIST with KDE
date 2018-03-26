@@ -1,0 +1,91 @@
+%matplotlib inline
+
+import numpy as np
+import scipy.io
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+ 
+train_mat = scipy.io.loadmat('mnist_train.mat')
+train_data = train_mat['images']
+train_labels = train_mat['labels']
+ 
+test_mat = scipy.io.loadmat('mnist_test.mat')
+test_data = test_mat['t10k_images']
+test_labels = test_mat['t10k_labels']
+
+
+
+train_labels = np.reshape(train_labels, (60000))
+test_labels = np.reshape(test_labels, (10000))
+
+
+
+# EXPERIMENT #1
+#calculate KDE p(x) given data
+
+plt.figure(1)
+avg_img = np.zeros([10, 784])
+for i in range( 10 ):
+    avg_img[i] = np.mean( train_data[:, train_labels == i], axis = 1 )
+    plt.subplot(2,5,i+1)
+    plt.imshow( avg_img[i].reshape(28,28).T, interpolation='nearest', cmap="gray")
+#     plt.show()
+    plt.axis('off')
+
+# EXPERIMENT #2
+#calculate p(x), given KDE
+
+sigma = np.eye( 784 )
+K = test_data.shape[0]
+# c = ( (2 * np.pi)**(-K/2)) # from the multivariate gaussians equation
+
+
+prob = np.zeros([10, test_data.shape[1]])
+for i in range(10):
+    diff = test_data - avg_img[i][:, None]
+    prob[i] = np.exp( -0.5 * np.sum( diff * np.dot( sigma, diff ), axis=0, keepdims = True ) )
+
+values = np.argmax(prob, axis=0)
+
+classification_error = np.mean(values != test_labels)
+print(test_labels.shape)
+cm = confusion_matrix(test_labels, values)
+
+print("Classification Error")
+print(classification_error)
+plt.ylabel("Predicted Class")
+plt.xlabel("Actual Class")
+plt.title("Confusion Matrix Using Class Means")
+plt.imshow(cm, interpolation='nearest', cmap=plt.cm.jet)
+plt.colorbar()
+
+# EXPERIMENT #3
+
+n = 1000
+small_test = test_data[:, 0:n]
+small_labels = test_labels[0:n]
+
+prob_values = np.zeros([10, n])
+for i in range(10):
+    mu = np.squeeze(train_data[:, train_labels == i])
+    for j in range(small_test.shape[1]):
+        x = small_test[:, j:j+1]
+        diff = x - mu
+        p = np.exp(-0.5 * np.sum(diff * np.dot(sigma, diff), axis = 0, keepdims = True))
+        p = np.mean(p)
+        prob_values[i,j] = p
+        
+values = np.argmax(prob_values, axis = 0)
+
+# experiment 3 continued
+
+classification_error = np.mean(values != small_labels)
+cm = confusion_matrix(small_labels, values)
+
+print("Classification Error")
+print(classification_error)
+plt.ylabel("Predicted Class")
+plt.xlabel("Actual Class")
+plt.title("Confusion Matrix Using a Full KDE")
+plt.imshow(cm, interpolation='nearest', cmap=plt.cm.jet)
+plt.colorbar()
