@@ -1,0 +1,98 @@
+%matplotlib inline
+
+import numpy as np
+import scipy.io
+import matplotlib.pyplot as plt
+
+data_xvals = np.atleast_2d( [ 1.0, 3.0, 5.0, 6.0, 7.0, 8.0 ] )
+data_yvals = np.sin( data_xvals )
+
+testpoints = np.arange(-2.0, 10.1, 0.1)
+numtest = testpoints.size
+
+def makeplot(i, mean, var, title):
+    plt.figure(i)
+    plt.plot(testpoints, mean)
+    plt.plot(data_xvals, data_yvals, 'bo')
+    varp = np.reshape(mean + var, numtest)
+    varn = np.reshape(mean - var, numtest)
+    plt.title(title)
+    axes = plt.gca()
+    axes.set_xlim([-4.0,12])
+    axes.set_ylim([-3.0,3.0])
+    plt.fill_between(testpoints, varn, varp, facecolor='lavender')
+    plt.grid(color='white')
+    axes.set_facecolor('whitesmoke')
+    plt.tight_layout()
+    
+    
+sigma = 0.1
+
+def linearK (x,y):
+    return x*y
+
+def polyK (x,y):
+    base = 1 + x * y
+    return np.power(base, 3)
+
+def rbfK (x,y):
+    firststep = np.power((x-y) , 2)
+    secondstep = -0.5 * firststep
+    return np.exp(secondstep)
+
+def delta(x,y):
+    return (x==y)
+
+def lineKNoisy (x,y):
+    return x*y + sigma * delta(x,y) 
+
+def polyKNoisy (x,y):
+    base = 1 + x * y
+    return np.power(base, 3) + sigma * delta(x,y) 
+
+def rbfKNoisy (x,y):
+    firststep = np.power((x-y) , 2)
+    secondstep = -0.5 * firststep
+    return np.exp(secondstep) + sigma * delta(x,y) 
+
+def kernmatrix(kernel):
+    
+    if kernel == linearK:
+        name = 'Linear Kernal'
+    else:
+        if kernel == polyK:
+            name = 'Polynomial Kernal'
+        else:
+            if kernel == rbfK:
+                name = 'RBF Kernal'
+    if kernel == lineKNoisy:
+        name = 'Noisy Linear Kernal, sigma = 0.1'
+    if kernel == polyKNoisy:
+        name = 'Noisy Polynomial Kernal, sigma = 0.1'
+    if kernel == rbfKNoisy:
+        name = 'Noisy RBF Kernal, sigma = 0.1'
+    kxx = kernel( data_xvals, data_xvals.T )
+    kxx = np.linalg.pinv(kxx)
+    mean = np.zeros(testpoints.shape)
+    variance = np.zeros(testpoints.shape)
+    
+    for i in range(testpoints.size):
+        curtest = testpoints[i]
+        ktx = kernel( data_xvals, curtest )
+        ktt = kernel( curtest, curtest )
+        
+        sigmaprime = (ktt - np.dot( ktx, np.dot(kxx, ktx.T)))
+        variance[i] = sigmaprime
+        
+        mu = np.dot(np.dot(ktx, kxx), data_yvals.T)
+        mean[i] = mu
+    makeplot(name, mean, variance, name)
+        
+    
+
+kernmatrix(linearK)
+kernmatrix(polyK)
+kernmatrix(rbfK)
+kernmatrix(lineKNoisy)
+kernmatrix(polyKNoisy)
+kernmatrix(rbfKNoisy)
